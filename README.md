@@ -1,13 +1,12 @@
 # Gestor de tareas Full Stack
 
 Aplicación web compacta para crear, consultar, buscar, filtrar, editar, cambiar de estado y
-eliminar tareas. Está pensada como una prueba técnica fácil de ejecutar, estudiar y explicar.
+eliminar tareas. Está diseñada para ser fácil de ejecutar, revisar, mantener y extender.
 
 ## Objetivo
 
-Demostrar un flujo Full Stack completo con una API REST tipada, persistencia local SQLite,
-validación consistente y una interfaz Angular responsive. La aplicación no incluye autenticación
-porque trabaja como un gestor personal local.
+Demostrar un flujo Full Stack completo mediante una API REST tipada, persistencia SQLite,
+validación consistente y una interfaz Angular responsive.
 
 ## Tecnologías
 
@@ -27,6 +26,7 @@ porque trabaja como un gestor personal local.
 ```text
 task-manager-fullstack/
 ├── backend/
+│   ├── .env.example          # Plantilla utilizada por el backend
 │   ├── data/                  # Se crea al iniciar; la base no se versiona
 │   ├── src/
 │   │   ├── config/            # Entorno y conexión SQLite
@@ -43,7 +43,7 @@ task-manager-fullstack/
 │       ├── core/              # Modelos, servicio HTTP e interceptor
 │       ├── features/tasks/    # Página y componentes de tareas
 │       └── shared/            # Modal, toast, loading y estado vacío
-├── .env.example
+├── .env.example              # Copia de referencia de las variables disponibles
 └── package.json
 ```
 
@@ -55,7 +55,11 @@ Desde la raíz:
 npm run install:all
 ```
 
-El script instala las dependencias raíz, del backend y del frontend. Después copia la configuración:
+El script instala las dependencias raíz, del backend y del frontend. El repositorio contiene dos
+plantillas equivalentes: `.env.example` en la raíz y `backend/.env.example`. El backend carga
+`backend/.env` al ejecutarse mediante los scripts del proyecto.
+
+En Windows con PowerShell:
 
 ```powershell
 Copy-Item backend/.env.example backend/.env
@@ -170,6 +174,25 @@ Respuesta `200`:
 ]
 ```
 
+Consultar una tarea por identificador:
+
+```bash
+curl http://localhost:3000/api/tasks/ad429614-9ee4-4838-a14a-4bc3884059e9
+```
+
+Respuesta `200`:
+
+```json
+{
+  "id": "ad429614-9ee4-4838-a14a-4bc3884059e9",
+  "title": "Preparar documentación",
+  "description": "Revisar instrucciones",
+  "status": "pending",
+  "createdAt": "2026-07-30T20:00:00.000Z",
+  "updatedAt": "2026-07-30T20:00:00.000Z"
+}
+```
+
 Crear:
 
 ```bash
@@ -178,8 +201,22 @@ curl -i -X POST http://localhost:3000/api/tasks \
   -d '{"title":"Completar prueba técnica","description":"Revisar frontend y backend","status":"pending"}'
 ```
 
-Retorna `201`, la tarea creada y el encabezado
-`Location: /api/tasks/{id}`.
+Respuesta `201` con el encabezado:
+
+```http
+Location: /api/tasks/b72435b8-a8cc-4554-8a98-73e818f9d71d
+```
+
+```json
+{
+  "id": "b72435b8-a8cc-4554-8a98-73e818f9d71d",
+  "title": "Completar prueba técnica",
+  "description": "Revisar frontend y backend",
+  "status": "pending",
+  "createdAt": "2026-07-30T20:05:00.000Z",
+  "updatedAt": "2026-07-30T20:05:00.000Z"
+}
+```
 
 Actualizar con PUT completo:
 
@@ -187,6 +224,19 @@ Actualizar con PUT completo:
 curl -X PUT http://localhost:3000/api/tasks/ad429614-9ee4-4838-a14a-4bc3884059e9 \
   -H "Content-Type: application/json" \
   -d '{"title":"Completar y revisar prueba","description":null,"status":"in_progress"}'
+```
+
+Respuesta `200`:
+
+```json
+{
+  "id": "ad429614-9ee4-4838-a14a-4bc3884059e9",
+  "title": "Completar y revisar prueba",
+  "description": null,
+  "status": "in_progress",
+  "createdAt": "2026-07-30T20:00:00.000Z",
+  "updatedAt": "2026-07-30T20:10:00.000Z"
+}
 ```
 
 Eliminar:
@@ -220,6 +270,19 @@ Error `404`:
 }
 ```
 
+Formato de un error interno `500`:
+
+```json
+{
+  "statusCode": 500,
+  "message": "Ocurrió un error interno",
+  "timestamp": "2026-07-30T20:15:00.000Z",
+  "path": "/api/tasks"
+}
+```
+
+Las respuestas de error no incluyen stack traces ni detalles internos.
+
 ## Arquitectura y comunicación
 
 En el backend, las rutas delegan en controladores delgados; los servicios contienen los casos de
@@ -229,8 +292,8 @@ automáticamente la carpeta y tabla, incluida una restricción `CHECK` para el e
 
 En el frontend, `TasksPageComponent` coordina datos y operaciones. Los componentes de filtros,
 resumen, lista y tarjeta reciben entradas y emiten acciones. `TaskService` encapsula HttpClient.
-La búsqueda aplica debounce y distinct, mientras la página usa `switchMap` para cancelar listados
-anteriores cuando cambian los filtros. No se necesita estado global.
+La búsqueda aplica `debounceTime` y `distinctUntilChanged`, mientras la página usa `switchMap`
+para cancelar listados anteriores cuando cambian los filtros. No se necesita estado global.
 
 El interceptor aplica un timeout de 10 segundos y convierte errores `400`, `404`, `500`, de red y
 timeout en mensajes en español. También diferencia un cuerpo demasiado grande (`413`). El
@@ -245,8 +308,9 @@ y reserva `500` para errores inesperados, sin enviar stack traces.
 - `PUT` exige `title`, `description` y `status`; `description` puede ser `null`.
 - Los cuerpos usan esquemas Zod estrictos. Por consistencia, `id`, `createdAt`, `updatedAt` y
   cualquier otro campo desconocido se rechazan con `400`.
-- La búsqueda no distingue mayúsculas, incluidas letras acentuadas, y escapa `%` y `_` para
-  tratarlos como texto.
+- La búsqueda no distingue mayúsculas de minúsculas mediante reglas de locale español y conserva
+  los acentos: un término con tilde y otro sin tilde no son equivalentes. Además, escapa `%` y `_`
+  para tratarlos como texto.
 - Las fechas e identificadores son responsabilidad exclusiva del servidor.
 - Se usa SQL directo para que el modelo de persistencia sea visible y sencillo de explicar.
 
@@ -254,9 +318,9 @@ y reserva `500` para errores inesperados, sin enviar stack traces.
 
 La interfaz incluye resumen global, búsqueda, filtro, limpieza de filtros, tarjetas responsive,
 estados vacíos diferenciados, loading inicial y de filtros, modal reutilizable, contadores de
-caracteres, cambio rápido de estado, confirmación accesible, bloqueo durante operaciones y
-notificaciones. Los botones, labels, mensajes asociados y diálogos cuentan con atributos básicos
-de accesibilidad.
+caracteres, cambio rápido de estado, confirmación con semántica `alertdialog`, bloqueo durante
+operaciones y notificaciones. Los botones, labels, mensajes asociados y diálogos cuentan con
+atributos básicos de accesibilidad.
 
 Las pruebas representativas cubren once flujos de API con SQLite en memoria y seis casos del
 frontend: formulario, parámetros del servicio, interceptor HTTP y estado vacío. La base de
@@ -281,7 +345,6 @@ desarrollo nunca se usa en pruebas.
 La aplicación está diseñada para un único usuario local: no incluye autenticación, sincronización
 multiusuario ni resolución de ediciones simultáneas.
 
-Con los lockfiles actuales, `npm audit` informa vulnerabilidades transitivas en herramientas de
-desarrollo (5 altas en backend y 6 moderadas/21 altas en frontend). `npm audit --omit=dev` no
-informa vulnerabilidades en las dependencias de ejecución. Corregir las alertas restantes requiere
-evaluar actualizaciones mayores del toolchain.
+`npm audit --omit=dev` no reporta vulnerabilidades en las dependencias de producción. Las alertas
+restantes corresponden a dependencias transitivas del toolchain de desarrollo y su corrección
+requiere evaluar actualizaciones mayores.
