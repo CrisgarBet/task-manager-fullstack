@@ -1,0 +1,36 @@
+:root {
+  color-scheme: light;
+  --bs-primary: #275fc5;
+  --bs-primary-rgb: 39, 95, 197;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+body {
+  margin: 0;
+  color: #202940;
+  background: #f6f7fb;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+.btn,
+.form-control,
+.form-select {
+  border-radius: 0.65rem;
+}
+.btn {
+  padding: 0.55rem 0.9rem;
+}
+.form-control:focus,
+.form-select:focus {
+  border-color: #6c91d8;
+  box-shadow: 0 0 0 0.2rem rgba(39, 95, 197, 0.15);
+}
